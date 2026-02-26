@@ -1,13 +1,4 @@
 {
-  "all_features_debian_bookworm": {
-    "image": "docker.io/library/debian@sha256:0a5bf4ecacfc050bad0131c8e1401063fd1e8343a418723f6dbd3cd13a7b9e33",
-    "features": {
-      "google-cloud-cli": {},
-      "jq-likes": {},
-      "op": {},
-      "shell-history": {}
-    }
-  },
   "all_features_ubuntu_2404": {
     "image": "mcr.microsoft.com/devcontainers/base@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae",
     "features": {
