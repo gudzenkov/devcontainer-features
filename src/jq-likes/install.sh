@@ -39,7 +39,7 @@ if [ "${USERNAME}" = "auto" ] || [ "${USERNAME}" = "automatic" ]; then
     if [ "${USERNAME}" = "" ]; then
         USERNAME=root
     fi
-elif [ "${USERNAME}" = "none" ] || ! id -u ${USERNAME} >/dev/null 2>&1; then
+elif [ "${USERNAME}" = "none" ] || ! id -u "${USERNAME}" >/dev/null 2>&1; then
     USERNAME=root
 fi
 
@@ -151,7 +151,9 @@ setup_yq_completions() {
             mkdir -p "${pwsh_script_dir}"
             mkdir -p "${pwsh_profile_dir}"
             yq shell-completion powershell >"${pwsh_script_dir}/yq.ps1"
-            echo "Invoke-Expression -Command ${pwsh_script_dir}/yq.ps1" >>"${pwsh_profile_file}"
+            if ! grep -qF "Invoke-Expression -Command ${pwsh_script_dir}/yq.ps1" "${pwsh_profile_file}" 2>/dev/null; then
+                echo "Invoke-Expression -Command ${pwsh_script_dir}/yq.ps1" >>"${pwsh_profile_file}"
+            fi
             chown -R "${username}:${username}" "${pwsh_script_dir}"
             chown -R "${username}:${username}" "${pwsh_profile_dir}"
         fi
@@ -214,54 +216,60 @@ find_version_from_git_tags JAQ_VERSION "https://github.com/01mf02/jaq"
 if [ "${JQ_VERSION}" != "none" ]; then
     check_packages curl ca-certificates
     echo "Downloading jq ${JQ_VERSION}..."
-    mkdir /tmp/jq
-    curl -fsL "https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-linux-${architecture}" -o /tmp/jq/jq ||
-        download_old_jq "${JQ_VERSION}" /tmp/jq/jq
-    mv /tmp/jq/jq /usr/local/bin/jq
+    tmp_jq="$(mktemp -d)"
+    curl -fsL "https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-linux-${architecture}" -o "${tmp_jq}/jq" ||
+        download_old_jq "${JQ_VERSION}" "${tmp_jq}/jq"
+    mv "${tmp_jq}/jq" /usr/local/bin/jq
     chmod +x /usr/local/bin/jq
-    rm -rf /tmp/jq
+    rm -rf "${tmp_jq}"
 fi
 
 if [ "${YQ_VERSION}" != "none" ]; then
     check_packages curl ca-certificates
     echo "Downloading yq ${YQ_VERSION}..."
-    mkdir /tmp/yq
-    curl -fsL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${architecture}.tar.gz" | tar xz -C /tmp/yq
-    mv "/tmp/yq/yq_linux_${architecture}" /usr/local/bin/yq
-    pushd /tmp/yq
+    tmp_yq="$(mktemp -d)"
+    curl -fsL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${architecture}.tar.gz" -o "${tmp_yq}/yq.tar.gz"
+    tar xz --no-same-owner -C "${tmp_yq}" -f "${tmp_yq}/yq.tar.gz"
+    mv "${tmp_yq}/yq_linux_${architecture}" /usr/local/bin/yq
+    pushd "${tmp_yq}"
     ./install-man-page.sh
     popd
-    rm -rf /tmp/yq
+    rm -rf "${tmp_yq}"
     setup_yq_completions "${USERNAME}"
 fi
 
 if [ "${GOJQ_VERSION}" != "none" ]; then
     check_packages curl ca-certificates
     echo "Downloading gojq ${GOJQ_VERSION}..."
-    mkdir /tmp/gojq
-    curl -fsL "https://github.com/itchyny/gojq/releases/download/v${GOJQ_VERSION}/gojq_v${GOJQ_VERSION}_linux_${architecture}.tar.gz" | tar xz -C /tmp/gojq
-    mv "/tmp/gojq/gojq_v${GOJQ_VERSION}_linux_${architecture}/gojq" /usr/local/bin/gojq
-    setup_gojq_completions "${USERNAME}" "/tmp/gojq/gojq_v${GOJQ_VERSION}_linux_${architecture}"
-    rm -rf /tmp/gojq
+    tmp_gojq="$(mktemp -d)"
+    curl -fsL "https://github.com/itchyny/gojq/releases/download/v${GOJQ_VERSION}/gojq_v${GOJQ_VERSION}_linux_${architecture}.tar.gz" -o "${tmp_gojq}/gojq.tar.gz"
+    tar xz --no-same-owner -C "${tmp_gojq}" -f "${tmp_gojq}/gojq.tar.gz"
+    mv "${tmp_gojq}/gojq_v${GOJQ_VERSION}_linux_${architecture}/gojq" /usr/local/bin/gojq
+    setup_gojq_completions "${USERNAME}" "${tmp_gojq}/gojq_v${GOJQ_VERSION}_linux_${architecture}"
+    rm -rf "${tmp_gojq}"
 fi
 
 if [ "${XQ_VERSION}" != "none" ]; then
     check_packages curl ca-certificates
     echo "Downloading xq ${XQ_VERSION}..."
-    mkdir /tmp/xq
-    curl -fsL "https://github.com/MiSawa/xq/releases/download/v${XQ_VERSION}/xq-v${XQ_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" | tar xz -C /tmp/xq
-    mv "/tmp/xq/xq-v${XQ_VERSION}-$(uname -m)-unknown-linux-musl/xq" /usr/local/bin/xq
-    rm -rf /tmp/xq
+    tmp_xq="$(mktemp -d)"
+    curl -fsL "https://github.com/MiSawa/xq/releases/download/v${XQ_VERSION}/xq-v${XQ_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" -o "${tmp_xq}/xq.tar.gz"
+    tar xz --no-same-owner -C "${tmp_xq}" -f "${tmp_xq}/xq.tar.gz"
+    mv "${tmp_xq}/xq-v${XQ_VERSION}-$(uname -m)-unknown-linux-musl/xq" /usr/local/bin/xq
+    rm -rf "${tmp_xq}"
 fi
 
 if [ "${JAQ_VERSION}" != "none" ]; then
     check_packages curl ca-certificates
     echo "Downloading jaq ${JAQ_VERSION}..."
-    curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-$(uname -m)-unknown-linux-musl" -o /usr/local/bin/jaq ||
-        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-$(uname -m)-unknown-linux-gnu" -o /usr/local/bin/jaq ||
-        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-v${JAQ_VERSION}-$(uname -m)-unknown-linux-musl" -o /usr/local/bin/jaq ||
-        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-v${JAQ_VERSION}-$(uname -m)-unknown-linux-gnu" -o /usr/local/bin/jaq
+    tmp_jaq="$(mktemp -d)"
+    curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-$(uname -m)-unknown-linux-musl" -o "${tmp_jaq}/jaq" ||
+        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-$(uname -m)-unknown-linux-gnu" -o "${tmp_jaq}/jaq" ||
+        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-v${JAQ_VERSION}-$(uname -m)-unknown-linux-musl" -o "${tmp_jaq}/jaq" ||
+        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-v${JAQ_VERSION}-$(uname -m)-unknown-linux-gnu" -o "${tmp_jaq}/jaq"
+    mv "${tmp_jaq}/jaq" /usr/local/bin/jaq
     chmod +x /usr/local/bin/jaq
+    rm -rf "${tmp_jaq}"
 fi
 
 # Clean up

@@ -70,8 +70,9 @@ install_using_apt() {
     check_packages apt-transport-https curl ca-certificates gnupg python3
     # Import key (apt-key is deprecated/removed in newer Debian/Ubuntu images)
     install -d -m 0755 /usr/share/keyrings
-    curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
-        | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg -o /tmp/cloud.google.gpg.asc
+    gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg < /tmp/cloud.google.gpg.asc
+    rm -f /tmp/cloud.google.gpg.asc
     chmod 0644 /usr/share/keyrings/cloud.google.gpg
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
     apt_get_update

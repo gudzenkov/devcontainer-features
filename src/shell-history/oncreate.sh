@@ -22,7 +22,7 @@ fix_permissions() {
 
 echo "Activating feature 'shell-history'"
 echo "User: $(id -un)"
-echo "User home: $HOME"
+echo "User home: ${HOME}"
 
 
 # Set HISTFILE for bash
@@ -41,7 +41,7 @@ export PROMPT_COMMAND='history -a'
 EOF
 
 # Create symlink for fish
-mkdir -p $HOME/.config/fish
+mkdir -p "$HOME/.config/fish"
 cat << 'EOF' >> "$HOME/.config/fish/config.fish"
 if [ -z "$XDG_DATA_HOME" ];
     set history_location ~/.local/share/fish/fish_history
