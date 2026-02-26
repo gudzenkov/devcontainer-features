@@ -64,6 +64,68 @@ check_git() {
     fi
 }
 
+download_github_asset_verified() {
+    local repo=$1
+    local tag=$2
+    local output_file=$3
+    shift 3
+
+    if [ "$#" -eq 0 ]; then
+        echo "No asset names supplied for ${repo} ${tag}" >&2
+        return 1
+    fi
+
+    check_packages curl ca-certificates python3
+
+    local release_json
+    release_json="$(curl -fsL "https://api.github.com/repos/${repo}/releases/tags/${tag}")"
+
+    local asset_info
+    asset_info="$(ASSET_CANDIDATES="$*" python3 -c '
+import json
+import os
+import sys
+
+release = json.loads(sys.stdin.read())
+candidates = os.environ["ASSET_CANDIDATES"].split(" ")
+assets = release.get("assets", [])
+
+for candidate in candidates:
+    for asset in assets:
+        if asset.get("name") == candidate:
+            digest = asset.get("digest", "")
+            if not digest.startswith("sha256:"):
+                print("", end="")
+                sys.exit(2)
+            print(asset["browser_download_url"] + "|" + digest.split(":", 1)[1])
+            sys.exit(0)
+
+print("", end="")
+sys.exit(1)
+' <<<"${release_json}")" || {
+        rc=$?
+        if [ "${rc}" -eq 2 ]; then
+            echo "Missing sha256 digest metadata for one of: $*" >&2
+        else
+            echo "No matching release asset found in ${repo} ${tag} for: $*" >&2
+        fi
+        return 1
+    }
+
+    local download_url="${asset_info%%|*}"
+    local expected_sha="${asset_info##*|}"
+
+    curl -fsL "${download_url}" -o "${output_file}"
+    local actual_sha
+    actual_sha="$(sha256sum "${output_file}" | awk '{print $1}')"
+    if [ "${actual_sha}" != "${expected_sha}" ]; then
+        echo "Checksum mismatch for ${download_url}" >&2
+        echo "Expected: ${expected_sha}" >&2
+        echo "Actual:   ${actual_sha}" >&2
+        return 1
+    fi
+}
+
 find_version_from_git_tags() {
     local variable_name=$1
     local requested_version=${!variable_name}
@@ -188,7 +250,7 @@ download_old_jq() {
         exit 1
     fi
 
-    curl -fsL "https://github.com/jqlang/jq/releases/download/jq-${version}/jq-linux64" -o "${output_file}"
+    download_github_asset_verified "jqlang/jq" "jq-${version}" "${output_file}" "jq-linux64"
 }
 
 export DEBIAN_FRONTEND=noninteractive
@@ -214,10 +276,9 @@ find_version_from_git_tags XQ_VERSION "https://github.com/MiSawa/xq"
 find_version_from_git_tags JAQ_VERSION "https://github.com/01mf02/jaq"
 
 if [ "${JQ_VERSION}" != "none" ]; then
-    check_packages curl ca-certificates
     echo "Downloading jq ${JQ_VERSION}..."
     tmp_jq="$(mktemp -d)"
-    curl -fsL "https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-linux-${architecture}" -o "${tmp_jq}/jq" ||
+    download_github_asset_verified "jqlang/jq" "jq-${JQ_VERSION}" "${tmp_jq}/jq" "jq-linux-${architecture}" ||
         download_old_jq "${JQ_VERSION}" "${tmp_jq}/jq"
     mv "${tmp_jq}/jq" /usr/local/bin/jq
     chmod +x /usr/local/bin/jq
@@ -225,10 +286,9 @@ if [ "${JQ_VERSION}" != "none" ]; then
 fi
 
 if [ "${YQ_VERSION}" != "none" ]; then
-    check_packages curl ca-certificates
     echo "Downloading yq ${YQ_VERSION}..."
     tmp_yq="$(mktemp -d)"
-    curl -fsL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${architecture}.tar.gz" -o "${tmp_yq}/yq.tar.gz"
+    download_github_asset_verified "mikefarah/yq" "v${YQ_VERSION}" "${tmp_yq}/yq.tar.gz" "yq_linux_${architecture}.tar.gz"
     tar xz --no-same-owner -C "${tmp_yq}" -f "${tmp_yq}/yq.tar.gz"
     mv "${tmp_yq}/yq_linux_${architecture}" /usr/local/bin/yq
     pushd "${tmp_yq}"
@@ -239,10 +299,9 @@ if [ "${YQ_VERSION}" != "none" ]; then
 fi
 
 if [ "${GOJQ_VERSION}" != "none" ]; then
-    check_packages curl ca-certificates
     echo "Downloading gojq ${GOJQ_VERSION}..."
     tmp_gojq="$(mktemp -d)"
-    curl -fsL "https://github.com/itchyny/gojq/releases/download/v${GOJQ_VERSION}/gojq_v${GOJQ_VERSION}_linux_${architecture}.tar.gz" -o "${tmp_gojq}/gojq.tar.gz"
+    download_github_asset_verified "itchyny/gojq" "v${GOJQ_VERSION}" "${tmp_gojq}/gojq.tar.gz" "gojq_v${GOJQ_VERSION}_linux_${architecture}.tar.gz"
     tar xz --no-same-owner -C "${tmp_gojq}" -f "${tmp_gojq}/gojq.tar.gz"
     mv "${tmp_gojq}/gojq_v${GOJQ_VERSION}_linux_${architecture}/gojq" /usr/local/bin/gojq
     setup_gojq_completions "${USERNAME}" "${tmp_gojq}/gojq_v${GOJQ_VERSION}_linux_${architecture}"
@@ -250,23 +309,22 @@ if [ "${GOJQ_VERSION}" != "none" ]; then
 fi
 
 if [ "${XQ_VERSION}" != "none" ]; then
-    check_packages curl ca-certificates
     echo "Downloading xq ${XQ_VERSION}..."
     tmp_xq="$(mktemp -d)"
-    curl -fsL "https://github.com/MiSawa/xq/releases/download/v${XQ_VERSION}/xq-v${XQ_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" -o "${tmp_xq}/xq.tar.gz"
+    download_github_asset_verified "MiSawa/xq" "v${XQ_VERSION}" "${tmp_xq}/xq.tar.gz" "xq-v${XQ_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz"
     tar xz --no-same-owner -C "${tmp_xq}" -f "${tmp_xq}/xq.tar.gz"
     mv "${tmp_xq}/xq-v${XQ_VERSION}-$(uname -m)-unknown-linux-musl/xq" /usr/local/bin/xq
     rm -rf "${tmp_xq}"
 fi
 
 if [ "${JAQ_VERSION}" != "none" ]; then
-    check_packages curl ca-certificates
     echo "Downloading jaq ${JAQ_VERSION}..."
     tmp_jaq="$(mktemp -d)"
-    curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-$(uname -m)-unknown-linux-musl" -o "${tmp_jaq}/jaq" ||
-        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-$(uname -m)-unknown-linux-gnu" -o "${tmp_jaq}/jaq" ||
-        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-v${JAQ_VERSION}-$(uname -m)-unknown-linux-musl" -o "${tmp_jaq}/jaq" ||
-        curl -fsL "https://github.com/01mf02/jaq/releases/download/v${JAQ_VERSION}/jaq-v${JAQ_VERSION}-$(uname -m)-unknown-linux-gnu" -o "${tmp_jaq}/jaq"
+    download_github_asset_verified "01mf02/jaq" "v${JAQ_VERSION}" "${tmp_jaq}/jaq" \
+        "jaq-$(uname -m)-unknown-linux-musl" \
+        "jaq-$(uname -m)-unknown-linux-gnu" \
+        "jaq-v${JAQ_VERSION}-$(uname -m)-unknown-linux-musl" \
+        "jaq-v${JAQ_VERSION}-$(uname -m)-unknown-linux-gnu"
     mv "${tmp_jaq}/jaq" /usr/local/bin/jaq
     chmod +x /usr/local/bin/jaq
     rm -rf "${tmp_jaq}"

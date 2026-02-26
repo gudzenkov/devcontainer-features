@@ -7,6 +7,7 @@ rm -rf /var/lib/apt/lists/*
 
 GCLOUD_VERSION=${VERSION:-"latest"}
 INSTALL_GKEGCLOUDAUTH_PLUGIN="${INSTALL_GKEGCLOUDAUTH_PLUGIN:-"false"}"
+GOOGLE_CLOUD_APT_KEY_FINGERPRINT="35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3"
 
 if [ "$(id -u)" -ne 0 ]; then
     echo -e 'Script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.'
@@ -71,6 +72,13 @@ install_using_apt() {
     # Import key (apt-key is deprecated/removed in newer Debian/Ubuntu images)
     install -d -m 0755 /usr/share/keyrings
     curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg -o /tmp/cloud.google.gpg.asc
+    actual_fingerprint="$(gpg --show-keys --with-colons /tmp/cloud.google.gpg.asc | awk -F: '/^fpr:/ { print $10; exit }')"
+    if [ "${actual_fingerprint}" != "${GOOGLE_CLOUD_APT_KEY_FINGERPRINT}" ]; then
+        echo "Google Cloud APT key fingerprint mismatch." >&2
+        echo "Expected: ${GOOGLE_CLOUD_APT_KEY_FINGERPRINT}" >&2
+        echo "Actual:   ${actual_fingerprint}" >&2
+        exit 1
+    fi
     gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg < /tmp/cloud.google.gpg.asc
     rm -f /tmp/cloud.google.gpg.asc
     chmod 0644 /usr/share/keyrings/cloud.google.gpg
