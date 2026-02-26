@@ -7,7 +7,7 @@ Install google-cloud-cli
 
 ```json
 "features": {
-    "ghcr.io/dhoeric/features/google-cloud-cli:1": {}
+    "ghcr.io/gudzenkov/devcontainer-features/google-cloud-cli:1": {}
 }
 ```
 
@@ -22,4 +22,4 @@ Install google-cloud-cli
 
 ---
 
-_Note: This file was auto-generated from the [devcontainer-feature.json](https://github.com/dhoeric/features/blob/main/src/google-cloud-cli/devcontainer-feature.json).  Add additional notes to a `NOTES.md`._
+_Note: This file was auto-generated from the [devcontainer-feature.json](https://github.com/gudzenkov/devcontainer-features/blob/main/src/google-cloud-cli/devcontainer-feature.json).  Add additional notes to a `NOTES.md`._

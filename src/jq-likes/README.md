@@ -7,7 +7,7 @@ Installs jq and jq like command line tools (yq, gojq, xq, jaq).
 
 ```json
 "features": {
-    "ghcr.io/eitsupi/devcontainer-features/jq-likes:2": {}
+    "ghcr.io/gudzenkov/devcontainer-features/jq-likes:2": {}
 }
 ```
 
@@ -75,4 +75,4 @@ If `"jqVersion": "os-provided"` is specified, jq will be installed via the packa
 
 ---
 
-_Note: This file was auto-generated from the [devcontainer-feature.json](https://github.com/eitsupi/devcontainer-features/blob/main/src/jq-likes/devcontainer-feature.json).  Add additional notes to a `NOTES.md`._
+_Note: This file was auto-generated from the [devcontainer-feature.json](https://github.com/gudzenkov/devcontainer-features/blob/main/src/jq-likes/devcontainer-feature.json).  Add additional notes to a `NOTES.md`._
