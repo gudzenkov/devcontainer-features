@@ -68,9 +68,12 @@ apt_cache_version_soft_match() {
 install_using_apt() {
     # Install dependencies
     check_packages apt-transport-https curl ca-certificates gnupg python3
-    # Import key
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    # Import key (apt-key is deprecated/removed in newer Debian/Ubuntu images)
+    install -d -m 0755 /usr/share/keyrings
+    curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+        | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    chmod 0644 /usr/share/keyrings/cloud.google.gpg
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
     apt_get_update
 
     if [ "${GCLOUD_VERSION}" = "latest" ]; then
