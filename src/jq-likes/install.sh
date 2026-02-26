@@ -191,9 +191,10 @@ setup_yq_completions() {
     if [ "${username}" = "root" ]; then
         fish_config_dir="/root/.config/fish"
     fi
-    if [ "${for_fish}" = "true" ] && [ -d "${fish_config_dir}" ]; then
+    if [ "${for_fish}" = "true" ]; then
         if yq shell-completion fish >/dev/null 2>&1; then
             echo "Installing fish completion..."
+            mkdir -p "${fish_config_dir}/completions"
             yq shell-completion fish >"${fish_config_dir}/completions/yq.fish"
             chown -R "${username}:${username}" "${fish_config_dir}"
         fi
